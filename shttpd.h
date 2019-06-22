@@ -138,6 +138,16 @@ struct headers {
     union variant   transenc;   /* Transfer-Encoding:   编码类型    */
 };
 
+/************************************请求头body数据 [例如POST]****************************/
+
+struct body
+{
+    char*  data; //具体的数据，都用字符串来表示
+    int    len;  //数据长度
+    char*  type;   //内容类型
+
+};
+
 
 /*******************************************CGI*********************************/
 struct cgi{
@@ -163,6 +173,7 @@ struct conn_request{
     unsigned long minor;    /*副版本*/
 
     struct headers ch;  /*头部结构*/
+    struct body    bd;  /*主体数据*/
 
     struct worker_conn *conn;   /*连接结构指针*/
     int err;                      // 错误代码

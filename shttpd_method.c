@@ -29,7 +29,7 @@ static int Method_DoGet(struct worker_ctl *wctl)
 {
 
 #ifdef DEBUG
-    printf("Method_DoGet 该请求为GET请求，正在处理响应......\n");
+    printf(">>>>>>>>> Method_DoGet 该请求为GET请求，正在处理响应......\n");
 #endif
 
     struct conn_response *res = &wctl->conn.con_res;//连接的响应
@@ -131,15 +131,57 @@ static int Method_DoGet(struct worker_ctl *wctl)
     res->status = status;
     printf("content length:%d, status:%d\n",res->cl, res->status);
 
-#ifdef DEBUG
-    printf("该请求为GET请求，正在处理响应......\n");
-#endif
-
     return 0;
 }
 
 static int Method_DoPost(struct worker_ctl *wctl)
 {
+# ifdef DEBUG
+    printf(">>>>>>>>>> Method正在处理POST请求\n");
+# endif
+
+    struct conn_response *res = &wctl->conn.con_res;//连接的响应
+    struct conn_request *req = &wctl->conn.con_req; //连接的请求
+
+    size_t      n;
+    unsigned long   r1, r2;
+    char    *fmt = "%a, %d %b %Y %H:%M:%S GMT";      //时间格式
+
+    /*******************响应报文的参数*****************************/
+    size_t status = 200;        /*状态值,已确定*/
+    char *msg = "OK";           /*状态信息,已确定*/
+    char  date[64] = "";        /*时间*/
+    char  etag[64] = "";        /*etag信息*/
+
+    /*当前时间*/
+    time_t t = time(NULL);  
+    (void) strftime(date, 
+                sizeof(date), 
+                fmt, 
+                localtime(&t));
+
+    /*ETAG*/
+    (void) snprintf(etag, 
+                sizeof(etag), 
+                "%lx.%lx",
+                (unsigned long) res->fsate.st_mtime,
+                (unsigned long) res->fsate.st_size);
+
+    memset(res->res.ptr, 0, sizeof(wctl->conn.dres));
+    snprintf(
+        res->res.ptr,
+        sizeof(wctl->conn.dres),
+        "HTTP/1.1 %d %s\r\n" 
+        "Date: %s\r\n"
+        "Etag: \"%s\"\r\n"     
+        "\r\n",
+        status,
+        msg,
+        date,
+        etag);
+    res->status = status;
+    printf("status:%d\n",res->cl, res->status);
+
     return 0;
 }
 
@@ -179,7 +221,7 @@ static int Method_DoList(struct worker_ctl *wctl)
 void Method_Do(struct worker_ctl *wctl)
 {
 #ifdef DEBUG
-    printf("Method_Do 正在处理响应......\n");
+    printf(">>>>>>> Method_Do 正在处理响应......\n");
 #endif
 
     if(0)
@@ -187,7 +229,7 @@ void Method_Do(struct worker_ctl *wctl)
 
     /*依据不同的请求方法来具体响应*/
 #ifdef DEBUG
-    printf("请求报文的方法代号 %d\n",wctl->conn.con_req.method);
+    printf("[*]请求报文的方法代号 %d\n",wctl->conn.con_req.method);
 #endif
     switch(wctl->conn.con_req.method)
     {
@@ -212,7 +254,7 @@ void Method_Do(struct worker_ctl *wctl)
     }
 
 #ifdef DEBUG
-    printf("响应处理完毕\n");
+    printf("[-]响应处理完毕\n");
 #endif
 
 }

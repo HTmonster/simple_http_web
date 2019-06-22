@@ -21,7 +21,7 @@ enum{
     MINET_PNG,  MINET_SVG,  MINET_TORRENT,  MINET_WAV,  MINET_MP3,  MINET_MID,  MINET_M3U,  MINET_RAM,
     MINET_RA,   MINET_DOC,  MINET_EXE,  MINET_ZIP,  MINET_XLS,  MINET_TGZ,  MINET_TARGZ,    MINET_TAR,
     MINET_GZ,   MINET_ARJ,  MINET_RAR,  MINET_RTF,  MINET_PDF,  MINET_SWF,  MINET_MPG,  MINET_MPEG,
-    MINET_ASF,  MINET_AVI,  MINET_BMP
+    MINET_ASF,  MINET_AVI,  MINET_BMP,  MINET_KV
 };
 
 // 参考RPC定义的类型
@@ -61,6 +61,7 @@ struct mine_type builtin_mime_types[] = {
     {"asf",     MINET_ASF,  3,  "video/x-ms-asf"        },
     {"avi",     MINET_AVI,  3,  "video/x-msvideo"       },
     {"bmp",     MINET_BMP,  3,  "image/bmp"         },
+    {"key_value",MINET_KV,  3,   "application/x-www-form-urlencoded"}, /*新增键对值 例如data=test*/
     {NULL,      -1,         0,  NULL                }
 };
 

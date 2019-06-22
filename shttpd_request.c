@@ -121,8 +121,9 @@ static time_t date_to_epoch(char *s)
  * @param s      字符串
  * @param len    字符串长度
  * @param parsed 头部结构
+ * @return       如果是post请求则会返回剩余的数据段，否则返回NULL
  */
-void Request_HeaderParse(char *s, int len, struct headers *parsed)
+char* Request_HeaderParse(char *s, int len, struct headers *parsed)
 {
 # ifdef DEBUG
     printf("正在解析剩余的请求头 Request_HeaderParse\n");
@@ -139,16 +140,21 @@ void Request_HeaderParse(char *s, int len, struct headers *parsed)
 
         /* 查找一行末尾*/
         for (p = s; p < e && *p != '\n'; ) 
-        {
+        {   
             p++;
         }
-        
         /* 已知方法*/
+#ifdef DEBUG_DETAIL
+        printf("[=]*************现在************\n%s \n[=]*************下一个************\n %s\n",s,p);
+#endif
         for (h = http_headers; h->len != 0; h++)
         {
             if (e - s > h->len &&    /*字符串匹配*/
                 !strncasecmp(s, h->name, h->len))
-            {
+            {   
+#ifdef DEBUG
+                printf("[=]匹配到头部项%s\n",h->name);
+#endif
                 break;
             }
         }
@@ -183,11 +189,47 @@ void Request_HeaderParse(char *s, int len, struct headers *parsed)
             }
         }
 
+
+        /**********************************************
+        *  判断是不是body的data数据段
+        *  遇到两个 \r\n
+        **************/
+        if(p+2<e&&
+            *(p-1)=='\r'&&*p=='\n'&&
+            *(p+1)=='\r'&&*(p+2)=='\n'){
+# ifdef DEBUG
+            printf("[-]检测到双间隔，退出头部解析 %s\n",p+2);
+# endif     
+            return p+2; //退出解析body数据
+        }
+
+
         s = p + 1;  /* Shift to the next header */
     }
 
+    return NULL;
+
 }
 
+/**
+ * 解析请求报文的主体
+ * @param s      主体字符串
+ * @param header 解析好了的头部信息
+ * @param body   要解析的主体信息
+ */
+void Request_BodyParse(char *s,struct headers *header,struct body *body){
+
+    body->len=header->cl.v_int;/*长度*/
+    body->type=header->ct.v_str;/*类型*/
+
+    body->data=s;/*数据内容*/
+
+#ifdef DEBUG
+    printf("[=]POST数据：%s len:%d type:%s\n",body->data,body->len,body->type);
+#endif
+
+    return;
+}
 
 
 
@@ -238,6 +280,9 @@ int  Request_Parse(struct worker_ctl *wctl)
         if(!strncmp(m->ptr, pos, m->len))/*匹配到头部方法*/
         {
             req->method = m->type;/*写入头部*/
+#ifdef DEBUG
+            printf("[*]匹配到头部方法%s %d\n",m->ptr,req->method);
+#endif
             found = 1;            /*找到标记*/
             break;
         }
@@ -308,16 +353,34 @@ int  Request_Parse(struct worker_ctl *wctl)
         goto EXITRequest_Parse;
     }
 
+#ifdef  DEBUG
+    printf("[*]解析头部第一行\n");
+#endif
 
     /*************************其他头部信息************************/
     JUMPTO_CHAR(pos, '\0');
     JUMPOVER_CHAR(pos,'\0');/*跳过空字符*/
     len -= pos - p;
     p = pos;
-    Request_HeaderParse(p, len, & req->ch); 
+
+#ifdef  DEBUG
+    printf("[*]解析头部剩余行\n");
+#endif
+
+    char* post_data=Request_HeaderParse(p, len, & req->ch);
+
+    /*************************POST数据解析***********************/
+    if(req->method==METHOD_POST&&post_data!=NULL){
+
+#ifdef DEBUG
+        printf("[*]解析POST数据\n");
+        Request_BodyParse(post_data,&req->ch,&req->bd);
+#endif
+    }
+
 
 # ifdef DEBUG
-    printf("解析到的URI:'%s',patch:'%s'\n",req->uri,req->rpath);
+    printf("解析到的URI:'%s',patch:'%s' err:%d\n",req->uri,req->rpath,retval);
 # endif
 
 EXITRequest_Parse:
@@ -344,18 +407,19 @@ int Request_Handle(struct worker_ctl* wctl)
 
     /*事件响应*/
 # ifdef DEBUG
-    printf("请求解析情况 %d\n",err);
+    printf("[*] 请求解析情况 %d\n",err);
 # endif
 
     switch(err)
     {   
         /*正常响应*/
         case 200:
-            printf("进入\n");
-            Method_Do(wctl);     //  响应方法的实现:只实现了GET,具体的方法在shttpd_method.c中
+            Method_Do(wctl);     //  响应方法的实现:只实现了GET POST,具体的方法在shttpd_method.c中
             int fd = wctl->conn.con_res.fd;
             cl = wctl->conn.con_res.cl;
             len = strlen(wctl->conn.con_res.res.ptr);
+
+            printf("%s\n",ptr);
             
             n = write(cs, ptr, len);
             printf("echo header:%s, write to client %d bytes, status:%d\n",ptr,n,wctl->conn.con_res.status);
